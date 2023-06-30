@@ -7,7 +7,8 @@
     "prepare": "husky install",
     "lint": "lint-staged --allow-empty",
     "build": "tsc -p tsconfig.build.json",
-    "dev": "webpack serve -c webpack.dev.ts"
+    "dev": "webpack serve -c webpack.dev.ts",
+    "dev:build": "webpack -c webpack.dev.ts"
   },
   "keywords": [],
   "author": "",
