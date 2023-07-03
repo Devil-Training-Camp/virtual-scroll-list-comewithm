@@ -1,7 +1,7 @@
 import { createRoot } from 'react-dom/client';
 
 import { VirtualScrollList } from './components/VirtualScrollList';
-import { createDatas } from './utils/util';
+import { createDatas } from './utils/mock';
 export const App = () => {
   const mockData = createDatas(100);
 
