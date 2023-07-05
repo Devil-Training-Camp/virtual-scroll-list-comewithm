@@ -13,7 +13,7 @@ export const createDatas = (length = 20) =>
   createValues((v, idx) => {
     return {
       user: `user_${idx}`,
-      // desc: descriptionStr.substring(0, ~~(Math.random() * 80) + 20)
-      desc: descriptionStr.substring(0, 20)
+      desc: descriptionStr.substring(0, ~~(Math.random() * 80) + 40)
+      // desc: descriptionStr.substring(0, 20)
     };
   }, length);

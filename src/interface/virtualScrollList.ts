@@ -1,12 +1,20 @@
 import React, { UIEvent } from 'react';
 
 export interface VirtualListProps<T> {
+  /**滚动列表 */
   scrollList: T[];
+  /**渲染单项函数 */
   renderItem: (item: T, index: number) => React.JSX.Element;
+  /**滚动列表的高度 */
+  scrollHeight: number;
+  /**滚动列表每项行高的预估值 */
   estimatedHeight: number;
+  /**滚动时触发的回调 */
   onScroll?: (event: UIEvent<HTMLDivElement>) => void;
+  /**滚动到底部触发的回调 */
   onScrollBottom?: () => void;
-  offset?: number;
+  /**滚动到底部的阈值 */
+  // offset?: number;
 }
 
 export interface MemoizedScrollItemPosition {

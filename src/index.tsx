@@ -10,13 +10,14 @@ export const App = () => {
       Hello World
       <VirtualScrollList
         scrollList={mockData}
+        scrollHeight={400}
+        estimatedHeight={50}
         renderItem={(item, index) => (
           <>
             <div>{item.user}</div>
             <div>{item.desc}</div>
           </>
         )}
-        offset={50}
         onScrollBottom={() => {
           console.log('bottom');
         }}

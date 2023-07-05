@@ -1,46 +1,18 @@
-import { MutableRefObject } from 'react';
 import {
   CompareResult,
   MemoizedScrollItemPosition
 } from '../interface/virtualScrollList';
 
 /**
- * 截取对应的数据
- * @param list 数据列表
- * @param renderLength 渲染数量
- * @param startIndex 渲染开始索引值
- */
-export const getRenderList: <T>(
-  list: T[],
-  renderLength: number,
-  startIndex?: number
-) => T[] = (list, renderLength, startIndex = 0) => {
-  return list.slice(startIndex, startIndex + renderLength);
-};
-
-/**
- * 判断是否滚动到底部
- * @param containerNode 容器元素
- * @param offset 偏移阈值
- */
-export const isScrollToBottom = (
-  containerNode: Element,
-  offset: number = 50
-) => {
-  const { scrollHeight, scrollTop, clientHeight } = containerNode;
-  const offsetToBottom = scrollHeight - clientHeight - scrollTop;
-  return offsetToBottom < offset;
-};
-
-/**
- * 初始化ScrollList列表位置信息(初始化缓存数组)
+ * 初始化ScrollList列表位置信息(初始化缓存数组)&可显示item数
  * @param scrollList 数据列表
  * @param estimatedScrollHeight 预估行高值
- * @returns
+ * @returns `[itemList, scrollViewNumber]`
  */
 export const initMemoizedPosition = <T>(
   scrollList: T[],
-  estimatedScrollHeight: number
+  estimatedScrollHeight: number,
+  scrollHeight: number
 ) => {
   const memoizedItemList: MemoizedScrollItemPosition[] = [];
 
@@ -54,7 +26,9 @@ export const initMemoizedPosition = <T>(
     });
   });
 
-  return memoizedItemList;
+  let scrollViewNum = Math.ceil(scrollHeight / estimatedScrollHeight);
+
+  return [memoizedItemList, scrollViewNum] as const;
 };
 
 /**
@@ -63,14 +37,14 @@ export const initMemoizedPosition = <T>(
  * @param memoizedItemList 缓存数组
  */
 export const updateMemoizedPosition = (
-  listContainerRef: MutableRefObject<HTMLDivElement>,
+  listContainer: HTMLDivElement,
   memoizedItemList: MemoizedScrollItemPosition[]
 ) => {
-  const nodeList = listContainerRef.current.childNodes;
+  const nodeList = listContainer.childNodes;
   const startNode = nodeList[0];
 
   // 遍历计算真实的行高
-  nodeList.forEach((node: HTMLDivElement) => {
+  nodeList.forEach((node: any) => {
     if (!node) {
       return;
     }
@@ -83,7 +57,7 @@ export const updateMemoizedPosition = (
       bottom: bottom - startDifferHeight,
       height
     };
-    // 开始索引值
+    // 开始索引值 调整偏移值
     let startIndex = 0;
     if (startNode) {
       startIndex = +(startNode as HTMLDivElement).id.split('_')[1];
@@ -150,8 +124,8 @@ export const binarySearch = <T, F>(
 
 /**
  * 查找对应的索引值
- * @param scrollTop 滚动偏移量
  * @param memoizedScrollListPosition
+ * @param scrollTop 滚动偏移量
  */
 export const getScrollStartIndex = (
   memoizedScrollListPosition: MemoizedScrollItemPosition[],

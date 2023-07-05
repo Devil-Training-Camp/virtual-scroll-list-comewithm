@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState, UIEvent } from 'react';
 import {
-  getRenderList,
+  getScrollStartIndex,
   initMemoizedPosition,
-  isScrollToBottom,
   updateMemoizedPosition
 } from '../../utils/util';
 import { VirtualListProps } from '../../interface/virtualScrollList';
@@ -11,7 +10,7 @@ import './index.less';
 const prefixCls = 'virtual-list';
 /**默认可滚动数量 */
 const DEFAULT_SCROLL_NUM = 2;
-
+let originalStartIndex = 0;
 let startIndex = 0;
 
 export function VirtualScrollList<T>(props: VirtualListProps<T>) {
@@ -32,109 +31,107 @@ export function VirtualScrollList<T>(props: VirtualListProps<T>) {
   const {
     scrollList,
     renderItem,
+    scrollHeight,
     estimatedHeight,
     onScroll,
-    onScrollBottom,
-    offset
+    onScrollBottom
   } = props;
   const [renderList, setRenderList] = useState<T[]>([]);
   const [offsetY, setOffsetY] = useState(0);
-  const virtualWrapperHeightRef = useRef<number>(0);
-  const renderLengthRef = useRef<number>(0);
-  const virtualItemHeightRef = useRef<number>(0);
-  const scrollTopRef = useRef<number>(0);
 
+  const virtualWrapperRef = useRef<HTMLDivElement>(null);
   const virtualBodyRef = useRef<HTMLDivElement>(null);
   // 初始化缓存数组
-  const memoizedScrollListPosition = initMemoizedPosition(
+  const [memoizedScrollListPosition, scrollViewNumber] = initMemoizedPosition(
     scrollList,
-    estimatedHeight
+    estimatedHeight,
+    scrollHeight
   );
 
-  /**计算列表渲染行数 */
-  const getRenderLength = () => {
-    const wrapper = document.querySelector(`.${prefixCls}-wrapper`);
-    const item = document.querySelector(`.${prefixCls}__item`);
-    if (wrapper && item) {
-      const { clientHeight } = wrapper;
-      const { height: itemHeight } = item.getBoundingClientRect();
-      virtualWrapperHeightRef.current = clientHeight;
-      virtualItemHeightRef.current = itemHeight;
-      return Math.ceil(clientHeight / itemHeight) + DEFAULT_SCROLL_NUM;
+  let endIndex = Math.min(
+    originalStartIndex + scrollViewNumber,
+    scrollList.length - 1
+  );
+  /**更新索引和滚动距离 */
+  const renderScrollIndex = () => {
+    // 可视区开始索引
+    startIndex = Math.max(0, originalStartIndex);
+    // 可视区结束索引
+    endIndex = Math.min(
+      originalStartIndex + scrollViewNumber + DEFAULT_SCROLL_NUM,
+      scrollList.length - 1
+    );
+  };
+
+  /**根据开始和结束索引渲染列表 */
+  const renderVisibleItemList = () => {
+    const offsetY =
+      startIndex >= 1 ? memoizedScrollListPosition[startIndex - 1].bottom : 0;
+    const renderList: T[] = [];
+    while (startIndex <= endIndex) {
+      renderList.push(scrollList[startIndex]);
+      startIndex++;
     }
-    return 0;
+    setOffsetY(offsetY);
+    setRenderList(renderList);
   };
 
-  const renderVisibleScrollItem = () => {
-    // TODO
-  };
+  /**初始化渲染scroll view list */
+  useEffect(() => {
+    renderScrollIndex();
+    renderVisibleItemList();
+  }, []);
 
+  /**缓存列表数据相关的滚动位置信息 */
   useEffect(() => {
     if (virtualBodyRef.current) {
-      updateMemoizedPosition(virtualBodyRef, memoizedScrollListPosition);
+      updateMemoizedPosition(
+        virtualBodyRef.current,
+        memoizedScrollListPosition
+      );
     }
   }, [startIndex]);
 
-  /**
-   * 初始化渲染一行获取数据(行高, 可视区渲染数量)
-   * 若存在渲染数据,根据scrollTop值设置renderList
-   */
-  useEffect(() => {
-    if (renderLengthRef.current && virtualItemHeightRef.current) {
-      const scrollTop = scrollTopRef.current;
-      const scrollIndex = Math.ceil(scrollTop / virtualItemHeightRef.current);
-      setRenderList(
-        getRenderList(scrollList, renderLengthRef.current, scrollIndex)
-      );
-    } else {
-      setRenderList(getRenderList(scrollList, 1));
-    }
-  }, [scrollList]);
-
-  /**scroll是否到底,执行onScrollBottom回调 */
-  useEffect(() => {
-    if (renderList.length === 1 && renderList.length !== scrollList.length) {
-      renderLengthRef.current = getRenderLength();
-      setRenderList(getRenderList(scrollList, renderLengthRef.current));
-    } else {
-      // 判断条件：
-      const wrapper = document.querySelector(
-        `.${prefixCls}-wrapper`
-      ) as Element;
-      if (isScrollToBottom(wrapper, offset)) {
-        onScrollBottom && onScrollBottom();
-      }
-    }
-  }, [renderList]);
-
-  /**scroll */
+  /**scroll 更新开始索引 */
   const onVirtualListScroll = (e: UIEvent<HTMLDivElement>) => {
-    const { scrollTop } = e.target as HTMLDivElement;
-    const offsetLength = Math.floor(scrollTop / virtualItemHeightRef.current);
-    const offsetY = scrollTop - (scrollTop % virtualItemHeightRef.current);
-    if (virtualWrapperHeightRef.current) {
-      // 记录滚动高度
-      scrollTopRef.current = scrollTop;
-    }
-    // 元素项偏移
-    setOffsetY(offsetY);
-    // 设置新的渲染数据列表
-    setRenderList(
-      getRenderList(scrollList, renderLengthRef.current, offsetLength)
+    const scrollTop = virtualWrapperRef.current?.scrollTop;
+
+    const currentStartIndex = getScrollStartIndex(
+      memoizedScrollListPosition,
+      scrollTop
     );
-    // scroll回调
-    onScroll && onScroll(e);
+
+    if (currentStartIndex !== originalStartIndex) {
+      // update scroll view list
+      originalStartIndex = currentStartIndex;
+      renderScrollIndex();
+      renderVisibleItemList();
+
+      if (currentStartIndex + scrollViewNumber >= scrollList.length) {
+        onScrollBottom?.();
+      }
+      onScroll?.(e);
+    }
   };
 
   return (
-    <div className={`${prefixCls}-wrapper`} onScroll={onVirtualListScroll}>
+    <div
+      className={`${prefixCls}-wrapper`}
+      onScroll={onVirtualListScroll}
+      ref={virtualWrapperRef}
+      style={{ height: scrollHeight }}
+    >
       <div
         className={`${prefixCls}__body`}
         ref={virtualBodyRef}
         style={{ transform: `translateY(${offsetY}px)` }}
       >
         {renderList.map((obj, i) => (
-          <div className={`${prefixCls}__item`} key={`virtual_item_${i}`}>
+          <div
+            className={`${prefixCls}__item`}
+            id={`item_${i}`}
+            key={`virtual_item_${i}`}
+          >
             {renderItem(obj, i)}
           </div>
         ))}
